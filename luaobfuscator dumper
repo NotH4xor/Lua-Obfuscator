@@ -1,0 +1,36 @@
+local function dump(...)
+    local args = {...}
+    if #args &gt; 1 then
+        error(&quot;invalid input: too many arguments&quot;, 3)
+    elseif #args &lt; 1 then
+        error(&quot;invalid input: expected a file path&quot;, 3)
+    end
+
+    local IDENTIFIER = &quot;[%w_]+&quot;
+
+    local file = io.open(args[1]);
+    local input = file:read(&quot;*a&quot;)
+    file:close()
+
+    local a, b, deserialize, d, e =
+        input:match(&quot;(.+)(local function &quot; .. IDENTIFIER .. &quot;%(%.%.%.%).+local function )(&quot; .. IDENTIFIER .. &quot;)(%(%).+)(&quot; .. &quot;local function &quot; .. IDENTIFIER .. &quot;%(&quot; .. IDENTIFIER .. &quot;, ?&quot; .. IDENTIFIER .. &quot;, ?&quot; .. IDENTIFIER .. &quot;%).+)&quot;)
+
+    local injection = [[if true then
+        local instructions = ]] .. deserialize .. [[()[1]
+        for _, inst in next, instructions do
+            if #inst == 3 then
+                print(inst[3])
+            end
+        end
+        return
+    end;]]
+
+    local chunk, err = (loadstring or load)(a .. b .. deserialize .. d .. injection .. e)
+    if err then
+        warn(err)
+        return
+    end
+
+    chunk()
+end
+dump(...)
